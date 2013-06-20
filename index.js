@@ -15,11 +15,13 @@ var template = fs.readFileSync(path.join(__dirname, 'changelog.hbs'), 'utf8');
 var changelog = handlebars.compile(template, {noEscape: true});
 
 program
-    .option('-u, --username <name>', 'Your GitHub username (required).')
-    .option('-p, --password <pass>', 'Your GitHub password (required).')
-    .option('-r, --repo <repo>', 'Repository name (required).')
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
         'the "username" option will be used.')
+    .option('-r, --repo <repo>', 'Repository name (required).')
+    .option('-u, --username <name>', 'Your GitHub username (only required ' +
+        'for private repos).')
+    .option('-p, --password <pass>', 'Your GitHub password (only required ' +
+        'for private repos).')
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
     .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
@@ -29,13 +31,19 @@ program
         'since <since>"]')
     .parse(process.argv);
 
-if (!(program.username && program.password && program.repo)) {
+if (!program.repo) {
+  program.help();
+  process.exit(1);
+}
+
+if (!program.username && !program.owner) {
+  console.error('\nOne of "username" or "owner" options must be provided');
   program.help();
   process.exit(1);
 }
 
 if (!(program.since || program.file)) {
-  console.error('\nOne of "since" or "output" options must be provided');
+  console.error('\nOne of "since" or "file" options must be provided');
   program.help();
   process.exit(1);
 }
@@ -52,11 +60,13 @@ var owner = program.owner || program.username;
 
 var github = new Client({version: '3.0.0'});
 
-github.authenticate({
-  type: 'basic',
-  username: program.username,
-  password: program.password
-});
+if (program.username && program.password) {
+  github.authenticate({
+    type: 'basic',
+    username: program.username,
+    password: program.password
+  });
+}
 
 github.issues.repoIssues({
   user: owner,
