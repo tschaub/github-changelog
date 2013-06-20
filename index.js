@@ -22,7 +22,7 @@ program
         'the "username" option will be used.')
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
-    .option('-s, --since <iso-date>', 'Last changelog date.  If the "output" ' +
+    .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
         'option is used and "since" is not provided, the mtime of the output ' +
         'file will be used.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
