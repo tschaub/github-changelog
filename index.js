@@ -28,7 +28,7 @@ program
         'option is used and "since" is not provided, the mtime of the output ' +
         'file will be used.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
-        'since <since>"]')
+        'since <since>".')
     .parse(process.argv);
 
 if (!program.repo) {
