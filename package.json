@@ -1,0 +1,27 @@
+{
+  "name": "github-changelog",
+  "version": "0.0.0",
+  "description": "Simple changelog generator for GitHub repositories",
+  "main": "index.js",
+  "repository": "https://github.com/tschaub/github-changelog.git",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://tschaub.mit-license.org/"
+    }
+  ],
+  "author": {
+    "name": "Tim Schaub",
+    "url": "http://tschaub.net/"
+  },
+  "dependencies": {
+    "github": "0.1.10",
+    "commander": "1.2.0",
+    "handlebars": "1.0.12",
+    "temp": "0.5.0",
+    "async": "0.2.9"
+  },
+  "bin": {
+    "gh-changelog": "./bin/gh-changelog.js"
+  }
+}
