@@ -10,7 +10,7 @@ Create a simple changelog based on closed GitHub issues.
 
 See `gh-changelog --help` for detailed usage.
 
-    Usage: index.js [options]
+    Usage: gh-changelog [options]
 
     Options:
 
@@ -31,10 +31,10 @@ See `gh-changelog --help` for detailed usage.
 
 ## Examples
 
-Create a new `changelog.md` file listing issues closed since 2013-06-01.
+Create a new `changelog.md` file listing issues closed in the `my-username/my-repo` repository since 2013-06-01.
 
-    gh-changelog --username my-username --password my-password --since 2013-06-01 > changelog.md
+    gh-changelog --username my-username --password my-password --repo my-repo --since 2013-06-01 > changelog.md
 
 Prepend new changes to existing `changelog.md` file (lists issues closed since `changelog.md` was last modified).
 
-    gh-changelog --username my-username --password my-password --output changelog.md
+    gh-changelog --username my-username --password my-password --repo my-repo --file changelog.md
