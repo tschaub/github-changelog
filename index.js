@@ -11,9 +11,6 @@ var handlebars = require('handlebars');
 var program = require('commander');
 var temp = require('temp');
 
-var template = fs.readFileSync(path.join(__dirname, 'changelog.hbs'), 'utf8');
-var changelog = handlebars.compile(template, {noEscape: true});
-
 program
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
         'the "username" option will be used.')
@@ -29,6 +26,7 @@ program
         'file will be used.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
+    .option('-t, --template <template>', 'Handlebar template to format data')
     .parse(process.argv);
 
 if (!program.repo) {
@@ -53,6 +51,11 @@ if (program.file && !fs.existsSync(program.file)) {
   program.help();
   process.exit(1);
 }
+
+var templatePath = program.template || path.join(__dirname, 'changelog.hbs');
+var template = fs.readFileSync(templatePath, 'utf8');
+var changelog = handlebars.compile(template, {noEscape: true});
+
 
 var since = program.since || fs.statSync(program.file).mtime.toISOString();
 var header = program.header || 'Changes since ' + since;
