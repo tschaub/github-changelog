@@ -26,7 +26,8 @@ program
         'file will be used.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
-    .option('-t, --template <template>', 'Handlebar template to format data')
+    .option('-t, --template <path>', 'Handlebar template to format data.' +
+        'The default bundled template generates a list of issues in Markdown')
     .parse(process.argv);
 
 if (!program.repo) {
