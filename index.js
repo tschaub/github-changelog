@@ -9,7 +9,6 @@ var Client = require('github');
 var async = require('async');
 var handlebars = require('handlebars');
 var program = require('commander');
-var temp = require('temp');
 
 program
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
@@ -24,6 +23,7 @@ program
     .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
         'option is used and "since" is not provided, the mtime of the output ' +
         'file will be used.')
+    .option('-m, --merged', 'List merged pull requests only.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
     .option('-t, --template <path>', 'Handlebar template to format data.' +
@@ -72,59 +72,77 @@ if (program.username && program.password) {
   });
 }
 
-github.issues.repoIssues({
-  user: owner,
-  repo: program.repo,
-  state: 'closed',
-  sort: 'created',
-  since: since,
-  per_page: 100
-}, function(err, data) {
-  if (err) {
-    console.log('\nGitHub API error');
-    console.error(err.message);
-    process.exit(1);
-  }
-  var text = changelog({
-    header: header,
-    issues: data
+function fetchIssues(callback) {
+  github.issues.repoIssues({
+    user: owner,
+    repo: program.repo,
+    state: 'closed',
+    sort: 'created',
+    since: since,
+    per_page: 100
+  }, function(err, issues) {
+    // TODO: paging - see https://github.com/tschaub/github-changelog/issues/5
+    callback(err, issues);
   });
+}
 
-  if (program.file) {
-    prepend(program.file, text, function(err) {
-      if (err) {
-        console.error(err.message);
-        process.exit(1);
-      }
-      process.exit(0);
+function filterIssues(issues, callback) {
+  if (!program.merged) {
+    process.nextTick(function() {
+      callback(null, issues);
     });
   } else {
-    console.log(text);
+    async.filter(issues, function(issue, isMerged) {
+      github.pullRequests.getMerged({
+        user: owner,
+        repo: program.repo,
+        number: issue.number
+      }, function(err, result) {
+        isMerged(!err);
+      });
+    }, function(filtered) {
+      callback(null, filtered);
+    });
+  }
+}
+
+function formatChangelog(issues, callback) {
+  process.nextTick(function() {
+    callback(null, changelog({header: header, issues: issues}));
+  });
+}
+
+function writeChangelog(text, callback) {
+  if (program.file) {
+    var existing;
+    async.waterfall([
+      function(next) {
+        fs.readFile(program.file, next);
+      }, function(data, next) {
+        existing = data;
+        fs.writeFile(program.file, text, next);
+      }, function(next) {
+        fs.appendFile(program.file, existing, next);
+      }
+    ], callback);
+  } else {
+    process.nextTick(function() {
+      console.log(text);
+      callback(null);
+    });
+  }
+}
+
+async.waterfall([
+  fetchIssues,
+  filterIssues,
+  formatChangelog,
+  writeChangelog
+], function(err) {
+  if (err) {
+    console.error(err.message);
+    process.exit(1);
+  } else {
     process.exit(0);
   }
 });
-
-function prepend(file, text, done) {
-  var path;
-  async.waterfall([
-    function(cb) {
-      temp.open('gh-changelog', cb);
-    },
-    function(info, cb) {
-      path = info.path;
-      fs.writeFile(path, text, cb);
-    },
-    function(cb) {
-      fs.readFile(program.file, cb);
-    },
-    function(data, cb) {
-      fs.appendFile(path, data, cb);
-    },
-    function(cb) {
-      fs.readFile(path, cb);
-    },
-    function(data, cb) {
-      fs.writeFile(program.file, data, cb);
-    }
-  ], done);
-}
