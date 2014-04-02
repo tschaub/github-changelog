@@ -22,5 +22,11 @@
   },
   "bin": {
     "gh-changelog": "./index.js"
+  },
+  "devDependencies": {
+    "jshint": "~2.5.0"
+  },
+  "scripts": {
+    "test": "jshint . --exclude node_modules"
   }
 }
