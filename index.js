@@ -72,37 +72,42 @@ if (program.username && program.password) {
   });
 }
 
-github.issues.repoIssues({
-  user: owner,
-  repo: program.repo,
-  state: 'closed',
-  sort: 'created',
-  since: since,
-  per_page: 100
-}, function(err, data) {
-  if (err) {
-    console.log('\nGitHub API error');
-    console.error(err.message);
-    process.exit(1);
-  }
-  var text = changelog({
-    header: header,
-    issues: data
+function fetchIssues(callback) {
+  github.issues.repoIssues({
+    user: owner,
+    repo: program.repo,
+    state: 'closed',
+    sort: 'created',
+    since: since,
+    per_page: 100
+  }, function(err, issues) {
+    // TODO: paging - see https://github.com/tschaub/github-changelog/issues/5
+    callback(err, issues);
   });
+}
 
+function filterIssues(issues, callback) {
+  process.nextTick(function() {
+    callback(null, issues);
+  });
+}
+
+function formatChangelog(issues, callback) {
+  process.nextTick(function() {
+    callback(null, changelog({header: header, issues: issues}));
+  });
+}
+
+function writeChangelog(text, callback) {
   if (program.file) {
-    prepend(program.file, text, function(err) {
-      if (err) {
-        console.error(err.message);
-        process.exit(1);
-      }
-      process.exit(0);
-    });
+    prepend(program.file, text, callback);
   } else {
-    console.log(text);
-    process.exit(0);
+    process.nextTick(function() {
+      console.log(text);
+      callback(null);
+    });
   }
-});
+}
 
 function prepend(file, text, done) {
   var path;
@@ -128,3 +133,17 @@ function prepend(file, text, done) {
     }
   ], done);
 }
+
+async.waterfall([
+  fetchIssues,
+  filterIssues,
+  formatChangelog,
+  writeChangelog
+], function(err) {
+  if (err) {
+    console.error(err.message);
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
+});
