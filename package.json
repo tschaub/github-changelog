@@ -15,11 +15,11 @@
     "url": "http://tschaub.net/"
   },
   "dependencies": {
-    "github": "0.1.10",
-    "commander": "1.2.0",
+    "github": "0.1.15",
+    "commander": "2.2.0",
     "handlebars": "1.0.12",
-    "temp": "0.5.0",
-    "async": "0.2.9"
+    "temp": "0.7.0",
+    "async": "0.6.2"
   },
   "bin": {
     "gh-changelog": "./index.js"
