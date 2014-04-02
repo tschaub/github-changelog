@@ -9,7 +9,6 @@ var Client = require('github');
 var async = require('async');
 var handlebars = require('handlebars');
 var program = require('commander');
-var temp = require('temp');
 
 program
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
@@ -100,38 +99,23 @@ function formatChangelog(issues, callback) {
 
 function writeChangelog(text, callback) {
   if (program.file) {
-    prepend(program.file, text, callback);
+    var existing;
+    async.waterfall([
+      function(next) {
+        fs.readFile(program.file, next);
+      }, function(data, next) {
+        existing = data;
+        fs.writeFile(program.file, text, next);
+      }, function(next) {
+        fs.appendFile(program.file, existing, next);
+      }
+    ], callback);
   } else {
     process.nextTick(function() {
       console.log(text);
       callback(null);
     });
   }
-}
-
-function prepend(file, text, done) {
-  var path;
-  async.waterfall([
-    function(cb) {
-      temp.open('gh-changelog', cb);
-    },
-    function(info, cb) {
-      path = info.path;
-      fs.writeFile(path, text, cb);
-    },
-    function(cb) {
-      fs.readFile(program.file, cb);
-    },
-    function(data, cb) {
-      fs.appendFile(path, data, cb);
-    },
-    function(cb) {
-      fs.readFile(path, cb);
-    },
-    function(data, cb) {
-      fs.writeFile(program.file, data, cb);
-    }
-  ], done);
 }
 
 async.waterfall([
