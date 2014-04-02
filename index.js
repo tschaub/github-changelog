@@ -23,6 +23,7 @@ program
     .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
         'option is used and "since" is not provided, the mtime of the output ' +
         'file will be used.')
+    .option('-m, --merged', 'List merged pull requests only.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
     .option('-t, --template <path>', 'Handlebar template to format data.' +
@@ -86,9 +87,23 @@ function fetchIssues(callback) {
 }
 
 function filterIssues(issues, callback) {
-  process.nextTick(function() {
-    callback(null, issues);
-  });
+  if (!program.merged) {
+    process.nextTick(function() {
+      callback(null, issues);
+    });
+  } else {
+    async.filter(issues, function(issue, isMerged) {
+      github.pullRequests.getMerged({
+        user: owner,
+        repo: program.repo,
+        number: issue.number
+      }, function(err, result) {
+        isMerged(!err);
+      });
+    }, function(filtered) {
+      callback(null, filtered);
+    });
+  }
 }
 
 function formatChangelog(issues, callback) {
