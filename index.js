@@ -73,17 +73,32 @@ if (program.username && program.password) {
 }
 
 function fetchIssues(callback) {
-  github.issues.repoIssues({
-    user: owner,
-    repo: program.repo,
-    state: 'closed',
-    sort: 'created',
-    since: since,
-    per_page: 100
-  }, function(err, issues) {
-    // TODO: paging - see https://github.com/tschaub/github-changelog/issues/5
-    callback(err, issues);
-  });
+  var page = 1;
+  var limit = 100;
+  var issues = [];
+  function fetch() {
+    github.issues.repoIssues({
+      user: owner,
+      repo: program.repo,
+      state: 'closed',
+      sort: 'created',
+      since: since,
+      per_page: limit,
+      page: page
+    }, function(err, batch) {
+      if (err) {
+        return callback(err);
+      }
+      issues = issues.concat(batch);
+      if (batch.length === limit) {
+        ++page;
+        fetch();
+      } else {
+        callback(null, issues);
+      }
+    });
+  }
+  fetch();
 }
 
 function filterIssues(issues, callback) {
