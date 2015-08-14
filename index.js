@@ -10,6 +10,8 @@ var async = require('async');
 var handlebars = require('handlebars');
 var program = require('commander');
 
+var dateFormat = require('dateformat');
+
 program
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
         'the "username" option will be used.')
@@ -30,6 +32,7 @@ program
         'since <since>".')
     .option('-t, --template <path>', 'Handlebar template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
+    .option('-g, --gist', 'Publish output to a Github gist.')
     .parse(process.argv);
 
 if (!program.repo) {
@@ -170,6 +173,25 @@ function writeChangelog(text, callback) {
         fs.appendFile(program.file, existing, next);
       }
     ], callback);
+  } else if (program.gist) {
+    var files = {};
+    // files['release note' + dateFormat(new Date(), 'yyyy-mm-dd HH:MM:ss') + '.md'] = {
+    //   content: text
+    // };
+    files['release note.md'] = {
+      content: text
+    };
+    github.gists.create({
+      description: 'Release note',
+      public: false,
+      files: files
+    }, function(err, gist) {
+      if (err) {
+        callback(err);
+      }
+      console.log(gist.html_url);
+      callback(null);
+    });
   } else {
     process.nextTick(function() {
       console.log(text);
