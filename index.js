@@ -18,6 +18,8 @@ program
         'for private repos).')
     .option('-p, --password <pass>', 'Your GitHub password (only required ' +
         'for private repos).')
+    .option('-t, --token <token>', 'Your GitHub token (only required ' +
+          'for private repos or if you want to bypass the Github API limit rate).')
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
     .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
@@ -35,8 +37,8 @@ if (!program.repo) {
   process.exit(1);
 }
 
-if (!program.username && !program.owner) {
-  console.error('\nOne of "username" or "owner" options must be provided');
+if (!program.username && !program.owner && !program.token) {
+  console.error('\nOne of "username" or "owner" or "token" options must be provided');
   program.help();
   process.exit(1);
 }
@@ -57,14 +59,15 @@ var templatePath = program.template || path.join(__dirname, 'changelog.hbs');
 var template = fs.readFileSync(templatePath, 'utf8');
 var changelog = handlebars.compile(template, {noEscape: true});
 
-
-var since = program.since || fs.statSync(program.file).mtime.toISOString();
-var header = program.header || 'Changes since ' + since;
-var owner = program.owner || program.username;
-
 var github = new Client({version: '3.0.0'});
 
-if (program.username && program.password) {
+if (program.token) {
+  github.authenticate({
+    type: 'oauth',
+    token: program.token
+  });
+}
+else if (program.username && program.password) {
   github.authenticate({
     type: 'basic',
     username: program.username,
@@ -72,7 +75,34 @@ if (program.username && program.password) {
   });
 }
 
-function fetchIssues(callback) {
+var since = program.since || fs.statSync(program.file).mtime.toISOString();
+var header = program.header || 'Changes since ' + since;
+var owner = program.owner || program.username;
+
+function isDate(value) {
+  const date = new Date(value);
+  return !isNaN(date.valueOf());
+}
+
+function fetchCommit(callback) {
+  if (!isDate(since)) {
+    github.gitdata.getCommit({
+      user: owner,
+      repo: program.repo,
+      sha: since
+    }, function(err, commit) {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, commit.author.date);
+    });
+  }
+  else {
+    callback(null, since);
+  }
+}
+
+function fetchIssuesSince(since, callback) {
   var page = 1;
   var limit = 100;
   var issues = [];
@@ -149,7 +179,8 @@ function writeChangelog(text, callback) {
 }
 
 async.waterfall([
-  fetchIssues,
+  fetchCommit,
+  fetchIssuesSince,
   filterIssues,
   formatChangelog,
   writeChangelog
