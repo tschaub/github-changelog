@@ -59,11 +59,6 @@ var templatePath = program.template || path.join(__dirname, 'changelog.hbs');
 var template = fs.readFileSync(templatePath, 'utf8');
 var changelog = handlebars.compile(template, {noEscape: true});
 
-
-var since = program.since || fs.statSync(program.file).mtime.toISOString();
-var header = program.header || 'Changes since ' + since;
-var owner = program.owner || program.username;
-
 var github = new Client({version: '3.0.0'});
 
 if (program.token) {
@@ -80,7 +75,34 @@ else if (program.username && program.password) {
   });
 }
 
-function fetchIssues(callback) {
+var since = program.since || fs.statSync(program.file).mtime.toISOString();
+var header = program.header || 'Changes since ' + since;
+var owner = program.owner || program.username;
+
+function isDate(value) {
+  const date = new Date(value);
+  return !isNaN(date.valueOf());
+}
+
+function fetchCommit(callback) {
+  if (!isDate(since)) {
+    github.gitdata.getCommit({
+      user: owner,
+      repo: program.repo,
+      sha: since
+    }, function(err, commit) {
+      if (err) {
+        return callback(err);
+      }
+      callback(null, commit.author.date);
+    });
+  }
+  else {
+    callback(null, since);
+  }
+}
+
+function fetchIssuesSince(since, callback) {
   var page = 1;
   var limit = 100;
   var issues = [];
@@ -157,7 +179,8 @@ function writeChangelog(text, callback) {
 }
 
 async.waterfall([
-  fetchIssues,
+  fetchCommit,
+  fetchIssuesSince,
   filterIssues,
   formatChangelog,
   writeChangelog
