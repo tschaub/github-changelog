@@ -1,0 +1,4 @@
+## <%= header %>
+
+<% issues.forEach(function(issue){ %>
+* <%= issue.title %> (#<%= issue.number %>) /by @<%= issue.user.login %><% }); %>

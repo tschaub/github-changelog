@@ -7,7 +7,7 @@ var path = require('path');
 // 3rd party modules
 var Client = require('github');
 var async = require('async');
-var handlebars = require('handlebars');
+var ejs = require('ejs');
 var program = require('commander');
 
 var dateFormat = require('dateformat');
@@ -30,7 +30,7 @@ program
     .option('-m, --merged', 'List merged pull requests only.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
-    .option('-t, --template <path>', 'Handlebar template to format data.' +
+    .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
     .parse(process.argv);
@@ -58,9 +58,9 @@ if (program.file && !fs.existsSync(program.file)) {
   process.exit(1);
 }
 
-var templatePath = program.template || path.join(__dirname, 'changelog.hbs');
+var templatePath = program.template || path.join(__dirname, 'changelog.ejs');
 var template = fs.readFileSync(templatePath, 'utf8');
-var changelog = handlebars.compile(template, {noEscape: true});
+var changelog = ejs.compile(template);
 
 var github = new Client({version: '3.0.0'});
 

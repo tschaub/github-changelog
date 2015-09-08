@@ -17,7 +17,7 @@
   "dependencies": {
     "github": "0.1.15",
     "commander": "2.2.0",
-    "handlebars": "1.0.12",
+    "ejs": "2.3.4",
     "async": "0.6.2",
     "dateformat": "1.0.11"
   },
