@@ -22,9 +22,8 @@ program
           'for private repos or if you want to bypass the Github API limit rate).')
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
-    .option('-s, --since <iso-date>', 'Last changelog date. If the "file" ' +
-        'option is used and "since" is not provided, the mtime of the output ' +
-        'file will be used.')
+    .option('-s, --since <iso-date>', 'Initial date or commit sha.')
+    .option('-b, --before <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
         'since <since>".')
@@ -114,13 +113,19 @@ function streamPagePullRequests(page) {
     .flatMap(Bacon.fromArray);
 }
 
-function getPullRequestClosedBeforeFilter(dateString) {
+function getPullRequestClosedSinceFilter(dateString) {
   return function(pullRequest) {
     return new Date(pullRequest.closed_at) > new Date(dateString);
   }
 }
 
-function streamAllPullRequestsSince(sinceDateString) {
+function getPullRequestClosedBeforeFilter(dateString) {
+  return function(pullRequest) {
+    return new Date(pullRequest.closed_at) <= new Date(dateString);
+  }
+}
+
+function streamAllPullRequestsBetween(params) {
   var paginationNeeded = true;
 
   return Bacon.repeat(function(index) {
@@ -129,13 +134,19 @@ function streamAllPullRequestsSince(sinceDateString) {
       return false;
     }
 
-    return streamPagePullRequests(index + 1)
+    var stream = streamPagePullRequests(index + 1)
       .doAction(function(pullRequest) {
-        if (new Date(pullRequest.updated_at) < new Date(sinceDateString)) {
+        if (new Date(pullRequest.updated_at) < new Date(params.since)) {
           paginationNeeded = false;
         }
       })
-      .filter(getPullRequestClosedBeforeFilter(sinceDateString));
+      .filter(getPullRequestClosedSinceFilter(params.since));
+
+    if (params.before) {
+      stream = stream.filter(getPullRequestClosedBeforeFilter(params.before));
+    }
+
+    return stream;
   });
 }
 
@@ -155,17 +166,32 @@ function createGist(text) {
     .map('.html_url');
 }
 
+/**
+ * Get a stream providing a single string date,
+ * the incoming parameter being either a date string or a commit sha.
+ */
+function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
+  return Bacon
+    .once(dateStringOrCommitId)
+    .flatMap(function(value) {
+      if (isDate(value)) {
+        return value;
+      }
+      if (value) {
+        return transformCommitIdToDate(value);
+      }
+      return undefined;
+    });
+}
 
-// Get a stream providing a single "since" date,
-// the incoming "since" param being either a date string or a commit sha.
-var sinceDateStream = Bacon
-  .once(since)
-  .flatMap(function(value) {
-    return isDate(value) ? value : transformCommitIdToDate(value);
-  });
+
+var sinceDateStream  = streamDateFromDateStringOrCommitId(since);
+var beforeDateStream = streamDateFromDateStringOrCommitId(program.before);
 
 // Get a stream providing the pull requests.
-var pullRequests = sinceDateStream.flatMap(streamAllPullRequestsSince);
+var pullRequests = Bacon
+  .combineTemplate({ since: sinceDateStream, before: beforeDateStream })
+  .flatMap(streamAllPullRequestsBetween);
 
 // Keep only merged pull requests if specified.
 if (program.merged) {
