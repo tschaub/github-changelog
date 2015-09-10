@@ -23,10 +23,10 @@ program
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
     .option('-s, --since <iso-date>', 'Initial date or commit sha.')
-    .option('-b, --before <iso-date>', 'Limit date or commit sha.')
+    .option('--until <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
     .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
-        'since <since>".')
+        'between <since> and <until>".')
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
@@ -119,12 +119,19 @@ function getPullRequestClosedSinceFilter(dateString) {
   }
 }
 
-function getPullRequestClosedBeforeFilter(dateString) {
+function getPullRequestClosedUntilFilter(dateString) {
   return function(pullRequest) {
     return new Date(pullRequest.closed_at) <= new Date(dateString);
   }
 }
 
+/**
+ * @param {Object} params of type:
+ * {
+ *   since: '2015-09-07T10:16:41Z',
+ *   until: '2015-09-10T12:50:09Z'
+ * }
+ */
 function streamAllPullRequestsBetween(params) {
   var paginationNeeded = true;
 
@@ -142,8 +149,8 @@ function streamAllPullRequestsBetween(params) {
       })
       .filter(getPullRequestClosedSinceFilter(params.since));
 
-    if (params.before) {
-      stream = stream.filter(getPullRequestClosedBeforeFilter(params.before));
+    if (params.until) {
+      stream = stream.filter(getPullRequestClosedUntilFilter(params.until));
     }
 
     return stream;
@@ -185,12 +192,12 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
 }
 
 
-var sinceDateStream  = streamDateFromDateStringOrCommitId(since);
-var beforeDateStream = streamDateFromDateStringOrCommitId(program.before);
+var sinceDateStream  = streamDateFromDateStringOrCommitId(program.since);
+var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 
 // Get a stream providing the pull requests.
 var pullRequests = Bacon
-  .combineTemplate({ since: sinceDateStream, before: beforeDateStream })
+  .combineTemplate({ since: sinceDateStream, until: untilDateStream })
   .flatMap(streamAllPullRequestsBetween);
 
 // Keep only merged pull requests if specified.
