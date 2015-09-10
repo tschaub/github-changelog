@@ -6,11 +6,9 @@ var path = require('path');
 
 // 3rd party modules
 var Client = require('github');
-var async = require('async');
 var ejs = require('ejs');
 var program = require('commander');
-
-var dateFormat = require('dateformat');
+var Bacon = require('baconjs');
 
 program
     .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
@@ -24,7 +22,7 @@ program
           'for private repos or if you want to bypass the Github API limit rate).')
     .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
         'log will be prepended to it.  Default is to write to stdout.')
-    .option('-s, --since <iso-date>', 'Last changelog date.  If the "file" ' +
+    .option('-s, --since <iso-date>', 'Last changelog date. If the "file" ' +
         'option is used and "since" is not provided, the mtime of the output ' +
         'file will be used.')
     .option('-m, --merged', 'List merged pull requests only.')
@@ -87,130 +85,110 @@ function isDate(value) {
   return !isNaN(date.valueOf());
 }
 
-function fetchCommit(callback) {
-  if (!isDate(since)) {
-    github.gitdata.getCommit({
-      user: owner,
-      repo: program.repo,
-      sha: since
-    }, function(err, commit) {
-      if (err) {
-        return callback(err);
-      }
-      callback(null, commit.author.date);
-    });
-  }
-  else {
-    callback(null, since);
+function transformCommitIdToDate(commitId) {
+  var params = {
+    user: owner,
+    repo: program.repo,
+    sha: commitId
+  };
+
+  return Bacon
+    .fromNodeCallback(github.gitdata.getCommit, params)
+    .flatMap('.author.date');
+}
+
+function streamPagePullRequests(page) {
+  var params = {
+    user: owner,
+    repo: program.repo,
+    base: 'master',
+    state: 'closed',
+    sort: 'updated',
+    direction: 'desc',
+    per_page: 50,
+    page: page
+  };
+
+  return Bacon
+    .fromNodeCallback(github.pullRequests.getAll, params)
+    .flatMap(Bacon.fromArray);
+}
+
+function getPullRequestClosedBeforeFilter(dateString) {
+  return function(pullRequest) {
+    return new Date(pullRequest.closed_at) > new Date(dateString);
   }
 }
 
-function fetchIssuesSince(since, callback) {
-  var page = 1;
-  var limit = 100;
-  var issues = [];
-  function fetch() {
-    github.issues.repoIssues({
-      user: owner,
-      repo: program.repo,
-      state: 'closed',
-      sort: 'created',
-      since: since,
-      per_page: limit,
-      page: page
-    }, function(err, batch) {
-      if (err) {
-        return callback(err);
-      }
-      issues = issues.concat(batch);
-      if (batch.length === limit) {
-        ++page;
-        fetch();
-      } else {
-        callback(null, issues);
-      }
-    });
-  }
-  fetch();
-}
+function streamAllPullRequestsSince(sinceDateString) {
+  var paginationNeeded = true;
 
-function filterIssues(issues, callback) {
-  if (!program.merged) {
-    process.nextTick(function() {
-      callback(null, issues);
-    });
-  } else {
-    async.filter(issues, function(issue, isMerged) {
-      github.pullRequests.getMerged({
-        user: owner,
-        repo: program.repo,
-        number: issue.number
-      }, function(err, result) {
-        isMerged(!err);
-      });
-    }, function(filtered) {
-      callback(null, filtered);
-    });
-  }
-}
+  return Bacon.repeat(function(index) {
 
-function formatChangelog(issues, callback) {
-  process.nextTick(function() {
-    callback(null, changelog({header: header, issues: issues}));
+    if (!paginationNeeded) {
+      return false;
+    }
+
+    return streamPagePullRequests(index + 1)
+      .doAction(function(pullRequest) {
+        if (new Date(pullRequest.updated_at) < new Date(sinceDateString)) {
+          paginationNeeded = false;
+        }
+      })
+      .filter(getPullRequestClosedBeforeFilter(sinceDateString));
   });
 }
 
-function writeChangelog(text, callback) {
-  if (program.file) {
-    var existing;
-    async.waterfall([
-      function(next) {
-        fs.readFile(program.file, next);
-      }, function(data, next) {
-        existing = data;
-        fs.writeFile(program.file, text, next);
-      }, function(next) {
-        fs.appendFile(program.file, existing, next);
+function createGist(text) {
+  var params = {
+    description: 'Release note',
+    public: false,
+    files: {
+      'release note.md': {
+        content: text
       }
-    ], callback);
-  } else if (program.gist) {
-    var files = {};
-    // files['release note' + dateFormat(new Date(), 'yyyy-mm-dd HH:MM:ss') + '.md'] = {
-    //   content: text
-    // };
-    files['release note.md'] = {
-      content: text
-    };
-    github.gists.create({
-      description: 'Release note',
-      public: false,
-      files: files
-    }, function(err, gist) {
-      if (err) {
-        callback(err);
-      }
-      console.log(gist.html_url);
-      callback(null);
-    });
-  } else {
-    process.nextTick(function() {
-      console.log(text);
-      callback(null);
-    });
-  }
+    }
+  };
+
+  return Bacon
+    .fromNodeCallback(github.gists.create, params)
+    .map('.html_url');
 }
 
-async.waterfall([
-  fetchCommit,
-  fetchIssuesSince,
-  filterIssues,
-  formatChangelog,
-  writeChangelog
-], function(err) {
-  if (err) {
-    console.error(err.message);
-    process.exit(1);
-  } else {
-    process.exit(0);
-  }
-});
+
+// Get a stream providing a single "since" date,
+// the incoming "since" param being either a date string or a commit sha.
+var sinceDateStream = Bacon
+  .once(since)
+  .flatMap(function(value) {
+    return isDate(value) ? value : transformCommitIdToDate(value);
+  });
+
+// Get a stream providing the pull requests.
+var pullRequests = sinceDateStream.flatMap(streamAllPullRequestsSince);
+
+// Keep only merged pull requests if specified.
+if (program.merged) {
+  pullRequests = pullRequests.filter(function(pullRequest) {
+    return pullRequest.merged_at !== null;
+  });
+}
+
+// Generate changelog text.
+var changelogText = pullRequests
+  .reduce([], '.concat')
+  .map(function(allPullRequests) {
+    return changelog({header: header, issues: allPullRequests});
+  });
+
+// Generate a gist if specified.
+if (program.gist) {
+  changelogText = changelogText.flatMap(createGist);
+}
+
+// Generate a release if specified
+if (program.release) {
+  // @todo
+}
+
+changelogText.log();
