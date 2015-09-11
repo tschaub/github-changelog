@@ -20,8 +20,6 @@ program
         'for private repos).')
     .option('-t, --token <token>', 'Your GitHub token (only required ' +
           'for private repos or if you want to bypass the Github API limit rate).')
-    .option('-f, --file <filename>', 'Output file.  If the file exists, ' +
-        'log will be prepended to it.  Default is to write to stdout.')
     .option('-s, --since <iso-date>', 'Initial date or commit sha.')
     .option('--until <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
@@ -43,14 +41,8 @@ if (!program.username && !program.owner && !program.token) {
   process.exit(1);
 }
 
-if (!(program.since || program.file)) {
-  console.error('\nOne of "since" or "file" options must be provided');
-  program.help();
-  process.exit(1);
-}
-
-if (program.file && !fs.existsSync(program.file)) {
-  console.error('\nFile not found: %s', program.file);
+if (!program.since) {
+  console.error('\n"Since" option must be provided');
   program.help();
   process.exit(1);
 }
@@ -75,8 +67,7 @@ else if (program.username && program.password) {
   });
 }
 
-var since = program.since || fs.statSync(program.file).mtime.toISOString();
-var header = program.header || 'Changes since ' + since;
+var header = program.header || 'Changes since ' + program.since;
 var owner = program.owner || program.username;
 
 function isDate(value) {
@@ -134,6 +125,9 @@ function getPullRequestClosedUntilFilter(dateString) {
  */
 function streamAllPullRequestsBetween(params) {
   var paginationNeeded = true;
+
+  console.log('since: ', params.since)
+  console.log('until: ', params.until)
 
   return Bacon.repeat(function(index) {
 
