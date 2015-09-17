@@ -26,6 +26,7 @@ program
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
+    .option('-d, --data <data>', 'Set arbitrary JSON data available in the template.')
     .parse(process.argv);
 
 if (!program.repo) {
@@ -211,6 +212,7 @@ var changelogText = Bacon
     since: sinceDateStream,
     until: untilDateStream,
     pullRequests: pullRequests.reduce([], '.concat'),
+    data: program.data ? JSON.parse(program.data) : {}
   })
   .map(changelog);
 
