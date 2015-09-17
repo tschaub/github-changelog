@@ -23,8 +23,6 @@ program
     .option('-s, --since <iso-date>', 'Initial date or commit sha.')
     .option('--until <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
-    .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
-        'between <since> and <until>".')
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
@@ -67,7 +65,6 @@ else if (program.username && program.password) {
   });
 }
 
-var header = program.header || 'Changes since ' + program.since;
 var owner = program.owner || program.username;
 
 function isDate(value) {
