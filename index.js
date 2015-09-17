@@ -128,8 +128,8 @@ function getPullRequestClosedUntilFilter(dateString) {
 function streamAllPullRequestsBetween(params) {
   var paginationNeeded = true;
 
-  console.log('since: ', params.since)
-  console.log('until: ', params.until)
+  // console.log('since: ', params.since)
+  // console.log('until: ', params.until)
 
   return Bacon.repeat(function(index) {
 
