@@ -23,11 +23,10 @@ program
     .option('-s, --since <iso-date>', 'Initial date or commit sha.')
     .option('--until <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
-    .option('-e, --header <header>', 'Header text.  Default is "Changes ' +
-        'between <since> and <until>".')
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
+    .option('-d, --data <data>', 'Set arbitrary JSON data available in the template.')
     .parse(process.argv);
 
 if (!program.repo) {
@@ -67,7 +66,6 @@ else if (program.username && program.password) {
   });
 }
 
-var header = program.header || 'Changes since ' + program.since;
 var owner = program.owner || program.username;
 
 function isDate(value) {
@@ -84,7 +82,12 @@ function transformCommitIdToDate(commitId) {
 
   return Bacon
     .fromNodeCallback(github.gitdata.getCommit, params)
-    .flatMap('.author.date');
+    .flatMap(function(commit) {
+      return {
+        date: commit.author.date,
+        commit: commit
+      };
+    });
 }
 
 function streamPagePullRequests(page) {
@@ -126,8 +129,8 @@ function getPullRequestClosedUntilFilter(dateString) {
 function streamAllPullRequestsBetween(params) {
   var paginationNeeded = true;
 
-  console.log('since: ', params.since)
-  console.log('until: ', params.until)
+  // console.log('since: ', params.since)
+  // console.log('until: ', params.until)
 
   return Bacon.repeat(function(index) {
 
@@ -137,14 +140,14 @@ function streamAllPullRequestsBetween(params) {
 
     var stream = streamPagePullRequests(index + 1)
       .doAction(function(pullRequest) {
-        if (new Date(pullRequest.updated_at) < new Date(params.since)) {
+        if (new Date(pullRequest.updated_at) < new Date(params.since.date)) {
           paginationNeeded = false;
         }
       })
-      .filter(getPullRequestClosedSinceFilter(params.since));
+      .filter(getPullRequestClosedSinceFilter(params.since.date));
 
     if (params.until) {
-      stream = stream.filter(getPullRequestClosedUntilFilter(params.until));
+      stream = stream.filter(getPullRequestClosedUntilFilter(params.until.date));
     }
 
     return stream;
@@ -176,7 +179,9 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
     .once(dateStringOrCommitId)
     .flatMap(function(value) {
       if (isDate(value)) {
-        return value;
+        return {
+          date: value
+        };
       }
       if (value) {
         return transformCommitIdToDate(value);
@@ -186,7 +191,7 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
 }
 
 
-var sinceDateStream  = streamDateFromDateStringOrCommitId(program.since);
+var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 
 // Get a stream providing the pull requests.
@@ -202,11 +207,14 @@ if (program.merged) {
 }
 
 // Generate changelog text.
-var changelogText = pullRequests
-  .reduce([], '.concat')
-  .map(function(allPullRequests) {
-    return changelog({header: header, issues: allPullRequests});
-  });
+var changelogText = Bacon
+  .combineTemplate({
+    since: sinceDateStream,
+    until: untilDateStream,
+    pullRequests: pullRequests.reduce([], '.concat'),
+    data: program.data ? JSON.parse(program.data) : {}
+  })
+  .map(changelog);
 
 // Generate a gist if specified.
 if (program.gist) {
