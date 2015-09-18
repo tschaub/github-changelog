@@ -234,7 +234,6 @@ if (program.release) {
   // @todo
 }
 
-// changelogText.log();
 changelog.onValue(function(result) {
   var output;
   if (program.json) {
