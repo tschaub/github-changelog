@@ -27,6 +27,7 @@ program
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
     .option('-d, --data <data>', 'Set arbitrary JSON data available in the template.')
+    .option('-j, --json', 'Get output in JSON.')
     .parse(process.argv);
 
 if (!program.repo) {
@@ -48,7 +49,7 @@ if (!program.since) {
 
 var templatePath = program.template || path.join(__dirname, 'changelog.ejs');
 var template = fs.readFileSync(templatePath, 'utf8');
-var changelog = ejs.compile(template);
+var createChangelog = ejs.compile(template);
 
 var github = new Client({version: '3.0.0'});
 
@@ -154,20 +155,22 @@ function streamAllPullRequestsBetween(params) {
   });
 }
 
-function createGist(text) {
+function createGist(changelog) {
   var params = {
     description: 'Release note',
     public: false,
     files: {
       'release note.md': {
-        content: text
+        content: changelog.text
       }
     }
   };
 
-  return Bacon
+  changelog.gist = Bacon
     .fromNodeCallback(github.gists.create, params)
     .map('.html_url');
+
+  return Bacon.combineTemplate(changelog);
 }
 
 /**
@@ -207,18 +210,23 @@ if (program.merged) {
 }
 
 // Generate changelog text.
-var changelogText = Bacon
+var changelog = Bacon
   .combineTemplate({
     since: sinceDateStream,
     until: untilDateStream,
     pullRequests: pullRequests.reduce([], '.concat'),
     data: program.data ? JSON.parse(program.data) : {}
   })
-  .map(changelog);
+  .map(createChangelog)
+  .map(function(text) {
+    return {
+      text: text
+    };
+  });
 
 // Generate a gist if specified.
 if (program.gist) {
-  changelogText = changelogText.flatMap(createGist);
+  changelog = changelog.flatMap(createGist);
 }
 
 // Generate a release if specified
@@ -226,4 +234,17 @@ if (program.release) {
   // @todo
 }
 
-changelogText.log();
+changelog.onValue(function(result) {
+  var output;
+  if (program.json) {
+    output = JSON.stringify(result);
+  }
+  else if (program.gist) {
+    output = result.gist;
+  }
+  else {
+    output = result.text;
+  }
+
+  console.log(output);
+});
