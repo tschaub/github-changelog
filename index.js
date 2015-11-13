@@ -20,7 +20,7 @@ program
         'for private repos).')
     .option('-t, --token <token>', 'Your GitHub token (only required ' +
           'for private repos or if you want to bypass the Github API limit rate).')
-    .option('-s, --since <iso-date>', 'Initial date or commit sha.')
+    .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
     .option('--until <iso-date>', 'Limit date or commit sha.')
     .option('-m, --merged', 'List merged pull requests only.')
     .option('-t, --template <path>', 'EJS template to format data.' +
