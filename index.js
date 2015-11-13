@@ -162,8 +162,6 @@ function streamAllPullRequestsBetween(params) {
 }
     }
 
-    return stream;
-  });
 }
 
 function createGist(changelog) {
@@ -208,9 +206,11 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
 var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 
+var params = Bacon
+  .combineTemplate({ since: sinceDateStream, until: untilDateStream });
+
 // Get a stream providing the pull requests.
-var pullRequests = Bacon
-  .combineTemplate({ since: sinceDateStream, until: untilDateStream })
+var pullRequests = params
   .flatMap(streamAllPullRequestsBetween);
 
 // Keep only merged pull requests if specified.
