@@ -91,23 +91,6 @@ function transformCommitIdToDate(commitId) {
     });
 }
 
-function streamPagePullRequests(page) {
-  var params = {
-    user: owner,
-    repo: program.repo,
-    base: 'master',
-    state: 'closed',
-    sort: 'updated',
-    direction: 'desc',
-    per_page: 50,
-    page: page
-  };
-
-  return Bacon
-    .fromNodeCallback(github.pullRequests.getAll, params)
-    .flatMap(Bacon.fromArray);
-}
-
 function getPullRequestClosedSinceFilter(dateString) {
   return function(pullRequest) {
     return new Date(pullRequest.closed_at) > new Date(dateString);
@@ -120,6 +103,24 @@ function getPullRequestClosedUntilFilter(dateString) {
   }
 }
 
+function paginator(pageStreamCallback, stopCondition) {
+  var paginationNeeded = true;
+
+  return Bacon.repeat(function(index) {
+
+    if (!paginationNeeded) {
+      return false;
+    }
+
+    return pageStreamCallback(index + 1)
+      .doAction(function(item) {
+        if (stopCondition(item)) {
+          paginationNeeded = false;
+        }
+      });
+  });
+}
+
 /**
  * @param {Object} params of type:
  * {
@@ -128,27 +129,37 @@ function getPullRequestClosedUntilFilter(dateString) {
  * }
  */
 function streamAllPullRequestsBetween(params) {
-  var paginationNeeded = true;
 
-  // console.log('since: ', params.since)
-  // console.log('until: ', params.until)
+  function pageOfPullRequests(page) {
+    var requestParams = {
+      user: owner,
+      repo: program.repo,
+      base: 'master',
+      state: 'closed',
+      sort: 'updated',
+      direction: 'desc',
+      per_page: 50,
+      page: page
+    };
 
-  return Bacon.repeat(function(index) {
+    return Bacon
+      .fromNodeCallback(github.pullRequests.getAll, requestParams)
+      .flatMap(Bacon.fromArray);
+  }
 
-    if (!paginationNeeded) {
-      return false;
-    }
+  function stopWhenSinceIsReached(pullRequest) {
+    return new Date(pullRequest.updated_at) < new Date(params.since.date);
+  }
 
-    var stream = streamPagePullRequests(index + 1)
-      .doAction(function(pullRequest) {
-        if (new Date(pullRequest.updated_at) < new Date(params.since.date)) {
-          paginationNeeded = false;
-        }
-      })
-      .filter(getPullRequestClosedSinceFilter(params.since.date));
+  var allPullRequests = paginator(pageOfPullRequests, stopWhenSinceIsReached)
+    .filter(getPullRequestClosedSinceFilter(params.since.date));
 
-    if (params.until) {
-      stream = stream.filter(getPullRequestClosedUntilFilter(params.until.date));
+  if (params.until) {
+    allPullRequests = allPullRequests.filter(getPullRequestClosedUntilFilter(params.until.date));
+  }
+
+  return allPullRequests;
+}
     }
 
     return stream;
