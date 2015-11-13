@@ -160,9 +160,7 @@ function streamAllPullRequestsBetween(params) {
 
   return allPullRequests;
 }
-    }
 
-}
 
 function createGist(changelog) {
   var params = {
