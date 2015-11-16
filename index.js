@@ -161,6 +161,44 @@ function streamAllPullRequestsBetween(params) {
 }
 
 
+function retrieveCommits(params) {
+
+  function pageOfCommits(page) {
+    var requestParams = {
+      user: owner,
+      repo: program.repo,
+      per_page: 50,
+      page: page
+    };
+
+    if (params.until && params.until.commit) {
+      requestParams.sha = params.until.commit.sha;
+    }
+
+    if (params.since && params.since.date) {
+      requestParams.since = params.since.date;
+    }
+
+    return Bacon
+      .fromNodeCallback(github.repos.getCommits, requestParams)
+      .flatMap(Bacon.fromArray);
+  }
+
+  var stopWhenSinceIsReached;
+  if (params.since.commit) {
+    stopWhenSinceIsReached = function(commit) {
+      return commit.sha === params.since.commit.sha;
+    };
+  }
+  else {
+    stopWhenSinceIsReached = function(commit) {
+      return new Date(commit.commit.committer.date) < new Date(params.since.date);
+    };
+  }
+
+  return paginator(pageOfCommits, stopWhenSinceIsReached);
+}
+
 function createGist(changelog) {
   var params = {
     description: 'Release note',
@@ -203,6 +241,25 @@ function pullRequestIsMerged(pullRequest) {
   return pullRequest.merged_at !== null;
 }
 
+function commitIsPullRequestMergeCommit(commit) {
+  return commit.parents.length > 1;
+}
+
+function getPullRequestIdFromCommit(commit) {
+  var matches = /Merge pull request #(\d+) from/.exec(commit.commit.message);
+  return matches ? matches[1] : null;
+}
+
+function retrievePullRequestById(pullRequestId) {
+  var requestParams = {
+    user: owner,
+    repo: program.repo,
+    number: pullRequestId
+  };
+
+  return Bacon
+    .fromNodeCallback(github.pullRequests.get, requestParams);
+}
 
 var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
