@@ -267,14 +267,22 @@ var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 var params = Bacon
   .combineTemplate({ since: sinceDateStream, until: untilDateStream });
 
-// Get a stream providing the pull requests.
+// Get a stream of pull request ids, based on merged commits between since and until.
 var pullRequests = params
-  .flatMap(streamAllPullRequestsBetween);
+  .flatMap(retrieveCommits)
+  .filter(commitIsPullRequestMergeCommit)
+  .flatMap(getPullRequestIdFromCommit)
+  .flatMap(retrievePullRequestById)
+  ;
 
-// Keep only merged pull requests if specified.
-if (program.merged) {
-  pullRequests = pullRequests.filter(pullRequestIsMerged);
-}
+// // Get a stream providing the pull requests.
+// var pullRequests = params
+//   .flatMap(streamAllPullRequestsBetween);
+//
+// // Keep only merged pull requests if specified.
+// if (program.merged) {
+//   pullRequests = pullRequests.filter(pullRequestIsMerged);
+// }
 
 // Generate changelog text.
 var changelog = Bacon
