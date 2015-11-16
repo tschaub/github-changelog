@@ -241,7 +241,7 @@ function pullRequestIsMerged(pullRequest) {
   return pullRequest.merged_at !== null;
 }
 
-function commitIsPullRequestMergeCommit(commit) {
+function commitIsMergedPullRequest(commit) {
   return commit.parents.length > 1;
 }
 
@@ -270,7 +270,7 @@ var params = Bacon
 // Get a stream of pull request ids, based on merged commits between since and until.
 var pullRequests = params
   .flatMap(retrieveCommits)
-  .filter(commitIsPullRequestMergeCommit)
+  .filter(commitIsMergedPullRequest)
   .flatMap(getPullRequestIdFromCommit)
   .flatMap(retrievePullRequestById)
   ;
