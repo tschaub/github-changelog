@@ -107,7 +107,6 @@ function paginator(pageStreamCallback, stopCondition) {
   var paginationNeeded = true;
 
   return Bacon.repeat(function(index) {
-
     if (!paginationNeeded) {
       return false;
     }
@@ -200,6 +199,10 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
     });
 }
 
+function pullRequestIsMerged(pullRequest) {
+  return pullRequest.merged_at !== null;
+}
+
 
 var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
@@ -213,9 +216,7 @@ var pullRequests = params
 
 // Keep only merged pull requests if specified.
 if (program.merged) {
-  pullRequests = pullRequests.filter(function(pullRequest) {
-    return pullRequest.merged_at !== null;
-  });
+  pullRequests = pullRequests.filter(pullRequestIsMerged);
 }
 
 // Generate changelog text.
