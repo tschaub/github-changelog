@@ -8,6 +8,7 @@ var path = require('path');
 var Client = require('github');
 var ejs = require('ejs');
 var program = require('commander');
+var not = require('not');
 var Bacon = require('baconjs');
 
 program
@@ -256,19 +257,37 @@ function retrievePullRequestById(pullRequestId) {
     .fromNodeCallback(github.pullRequests.get, requestParams);
 }
 
+function searchPullRequestByCommit(commit) {
+  return Bacon
+    .fromNodeCallback(github.search.issues, {q: commit.sha})
+    .flatMap(function(search) {
+      return search.items && search.items.length ? search.items[0] : undefined;
+    });
+}
+
 var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 
 var params = Bacon
   .combineTemplate({ since: sinceDateStream, until: untilDateStream });
 
+var commits = params
+  .flatMap(retrieveCommits);
+
+// If first commit is not a merge commit, go get its associated open Pull Request, if any.
+var potentialOpenPullRequest = commits
+  .first()
+  .filter(not(commitIsMergedPullRequest))
+  .flatMap(searchPullRequestByCommit);
+
 // Get a stream of pull request ids, based on merged commits between since and until.
-var pullRequests = params
-  .flatMap(retrieveCommits)
+var closedPullRequests = commits
   .filter(commitIsMergedPullRequest)
   .flatMap(getPullRequestIdFromCommit)
   .flatMap(retrievePullRequestById)
   ;
+
+var pullRequests = potentialOpenPullRequest.merge(closedPullRequests);
 
 // // Get a stream providing the pull requests.
 // var pullRequests = params
