@@ -20,6 +20,7 @@
     "ejs": "2.3.4",
     "baconjs": "0.7.73",
     "not": "0.1.0"
+    "jira": "^0.9.2",
   },
   "bin": {
     "gh-changelog": "./index.js"
