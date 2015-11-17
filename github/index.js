@@ -6,6 +6,6 @@ module.exports = function(config, credentials, owner, repo) {
 
   return {
     api: api,
-    helper: require('./helper')(api)
+    helper: helper
   };
 };
