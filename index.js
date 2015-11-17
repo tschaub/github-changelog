@@ -22,7 +22,6 @@ program
           'for private repos or if you want to bypass the Github API limit rate).')
     .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
     .option('--until <iso-date>', 'Limit date or commit sha.')
-    .option('-m, --merged', 'List merged pull requests only.')
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
@@ -237,10 +236,6 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
     });
 }
 
-function pullRequestIsMerged(pullRequest) {
-  return pullRequest.merged_at !== null;
-}
-
 function commitIsMergedPullRequest(commit) {
   return commit.parents.length > 1;
 }
@@ -278,11 +273,6 @@ var pullRequests = params
 // // Get a stream providing the pull requests.
 // var pullRequests = params
 //   .flatMap(streamAllPullRequestsBetween);
-//
-// // Keep only merged pull requests if specified.
-// if (program.merged) {
-//   pullRequests = pullRequests.filter(pullRequestIsMerged);
-// }
 
 // Generate changelog text.
 var changelog = Bacon
