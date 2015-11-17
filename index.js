@@ -7,7 +7,6 @@ var path = require('path');
 // 3rd party modules
 var ejs = require('ejs');
 var program = require('commander');
-var not = require('not');
 
 program
   .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
@@ -61,40 +60,14 @@ var github = require('./github')(
   program.repo
 );
 
-var sinceDateStream = github.api.streamDateFromDateStringOrCommitId(program.since);
-var untilDateStream = github.api.streamDateFromDateStringOrCommitId(program.until);
-
-var params = Bacon
-    .combineTemplate({ since: sinceDateStream, until: untilDateStream });
-
-var commits = params
-    .flatMap(github.api.retrieveCommits);
-
-// If first commit is not a merge commit, go get its associated open Pull Request, if any.
-var potentialOpenPullRequest = commits
-    .first()
-    .filter(not(github.api.commitIsMergedPullRequest))
-    .flatMap(github.api.searchPullRequestByCommit);
-
-// Get a stream of pull request ids, based on merged commits between since and until.
-var closedPullRequests = commits
-    .filter(github.api.commitIsMergedPullRequest)
-    .flatMap(github.api.getPullRequestIdFromCommit)
-    .flatMap(github.api.retrievePullRequestById)
-;
-
-var pullRequests = potentialOpenPullRequest.merge(closedPullRequests);
-
-// // Get a stream providing the pull requests.
-// var pullRequests = params
-//   .flatMap(streamAllPullRequestsBetween);
+var range = github.helper.range(program.since, program.until);
 
 // Generate changelog text.
 var changelog = Bacon
     .combineTemplate({
-      since: sinceDateStream,
-      until: untilDateStream,
-      pullRequests: pullRequests.reduce([], '.concat'),
+      since: range.sinceDateStream,
+      until: range.untilDateStream,
+      pullRequests: range.getPullRequests.reduce([], '.concat'),
       data: program.data ? JSON.parse(program.data) : {}
     })
     .map(createChangelog)

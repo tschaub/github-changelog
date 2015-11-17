@@ -1,7 +1,11 @@
 'use strict';
 
 module.exports = function(config, credentials, owner, repo) {
+  var api = require('./api')(config, credentials, owner, repo);
+  var helper = require('./helper')(api);
+
   return {
-    api: require('./api')(config, credentials, owner, repo)
+    api: api,
+    helper: require('./helper')(api)
   };
 };
