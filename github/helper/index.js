@@ -2,6 +2,7 @@
 
 module.exports = function(api) {
   return {
-    range: require('./range')(api)
+    range: require('./range')(api),
+    jira: require('./jira')
   };
 };

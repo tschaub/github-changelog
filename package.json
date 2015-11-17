@@ -21,6 +21,7 @@
     "baconjs": "0.7.73",
     "not": "0.1.0"
     "jira": "^0.9.2",
+    "winston": "^2.1.0"
   },
   "bin": {
     "gh-changelog": "./index.js"

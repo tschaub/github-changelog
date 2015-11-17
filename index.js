@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+require('./bootstrap');
+var logger = require('winston');
+var config = require('./config')(logger);
+
 // core modules
 var fs = require('fs');
 var path = require('path');
@@ -50,6 +54,8 @@ var createChangelog = ejs.compile(template);
 
 var owner = program.owner || program.username;
 
+var jira = require('./jira')(config.jira);
+
 var github = require('./github')(
   {
     token: program.token,
@@ -62,12 +68,16 @@ var github = require('./github')(
 
 var range = github.helper.range(program.since, program.until);
 
+var pullRequests = range
+    .getPullRequests
+    .flatMap(github.helper.jira(jira).fetch);
+
 // Generate changelog text.
 var changelog = Bacon
     .combineTemplate({
       since: range.sinceDateStream,
       until: range.untilDateStream,
-      pullRequests: range.getPullRequests.reduce([], '.concat'),
+      pullRequests: pullRequests.reduce([], '.concat'),
       data: program.data ? JSON.parse(program.data) : {}
     })
     .map(createChangelog)
