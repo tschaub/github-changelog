@@ -9,7 +9,6 @@ var fs = require('fs');
 var path = require('path');
 
 // 3rd party modules
-var ejs = require('ejs');
 var program = require('commander');
 
 program
@@ -50,7 +49,6 @@ if (!program.since) {
 
 var templatePath = program.template || path.join(__dirname, 'changelog.ejs');
 var template = fs.readFileSync(templatePath, 'utf8');
-var createChangelog = ejs.compile(template);
 
 var owner = program.owner || program.username;
 
@@ -66,46 +64,23 @@ var github = require('./github')(
   program.repo
 );
 
+var changelog = require('./changelog')(github.api);
+
 var range = github.helper.range(program.since, program.until);
 
 var pullRequests = range
     .getPullRequests
     .flatMap(github.helper.jira(jira).fetch);
 
-// Generate changelog text.
-var changelog = Bacon
-    .combineTemplate({
-      since: range.sinceDateStream,
-      until: range.untilDateStream,
-      pullRequests: pullRequests.reduce([], '.concat'),
-      data: program.data ? JSON.parse(program.data) : {}
-    })
-    .map(createChangelog)
-    .map(function(text) {
-      return {
-        text: text
-      };
-    });
-
-// Generate a gist if specified.
-if (program.gist) {
-  changelog = changelog.flatMap(github.api.createGist);
-}
-
-// Generate a release if specified
-if (program.release) {
-  // @todo
-}
-
-changelog.onValue(function(result) {
-  var output;
-  if (program.json) {
-    output = JSON.stringify(result);
-  } else if (program.gist) {
-    output = result.gist;
-  } else {
-    output = result.text;
-  }
-
-  console.log(output);
-});
+changelog.build(
+  {
+    json: program.json,
+    gist: program.gist,
+    release: program.release
+  },
+  template,
+  range.sinceDateStream,
+  range.untilDateStream,
+  pullRequests,
+  program.data
+);
