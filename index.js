@@ -44,7 +44,7 @@ if (!program.token) {
 }
 
 if (!program.since) {
-  console.error('\n"Since" option must be provided');
+  console.error('\n"since" option must be provided');
   program.help();
   process.exit(1);
 }
