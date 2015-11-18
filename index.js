@@ -8,6 +8,7 @@ var path = require('path');
 var Client = require('github');
 var ejs = require('ejs');
 var program = require('commander');
+var not = require('not');
 var Bacon = require('baconjs');
 
 program
@@ -22,7 +23,6 @@ program
           'for private repos or if you want to bypass the Github API limit rate).')
     .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
     .option('--until <iso-date>', 'Limit date or commit sha.')
-    .option('-m, --merged', 'List merged pull requests only.')
     .option('-t, --template <path>', 'EJS template to format data.' +
         'The default bundled template generates a list of issues in Markdown')
     .option('-g, --gist', 'Publish output to a Github gist.')
@@ -107,7 +107,6 @@ function paginator(pageStreamCallback, stopCondition) {
   var paginationNeeded = true;
 
   return Bacon.repeat(function(index) {
-
     if (!paginationNeeded) {
       return false;
     }
@@ -162,6 +161,44 @@ function streamAllPullRequestsBetween(params) {
 }
 
 
+function retrieveCommits(params) {
+
+  function pageOfCommits(page) {
+    var requestParams = {
+      user: owner,
+      repo: program.repo,
+      per_page: 50,
+      page: page
+    };
+
+    if (params.until && params.until.commit) {
+      requestParams.sha = params.until.commit.sha;
+    }
+
+    if (params.since && params.since.date) {
+      requestParams.since = params.since.date;
+    }
+
+    return Bacon
+      .fromNodeCallback(github.repos.getCommits, requestParams)
+      .flatMap(Bacon.fromArray);
+  }
+
+  var stopWhenSinceIsReached;
+  if (params.since.commit) {
+    stopWhenSinceIsReached = function(commit) {
+      return commit.sha === params.since.commit.sha;
+    };
+  }
+  else {
+    stopWhenSinceIsReached = function(commit) {
+      return new Date(commit.commit.committer.date) < new Date(params.since.date);
+    };
+  }
+
+  return paginator(pageOfCommits, stopWhenSinceIsReached);
+}
+
 function createGist(changelog) {
   var params = {
     description: 'Release note',
@@ -200,6 +237,33 @@ function streamDateFromDateStringOrCommitId(dateStringOrCommitId) {
     });
 }
 
+function commitIsMergedPullRequest(commit) {
+  return commit.parents.length > 1;
+}
+
+function getPullRequestIdFromCommit(commit) {
+  var matches = /Merge pull request #(\d+) from/.exec(commit.commit.message);
+  return matches ? matches[1] : null;
+}
+
+function retrievePullRequestById(pullRequestId) {
+  var requestParams = {
+    user: owner,
+    repo: program.repo,
+    number: pullRequestId
+  };
+
+  return Bacon
+    .fromNodeCallback(github.pullRequests.get, requestParams);
+}
+
+function searchPullRequestByCommit(commit) {
+  return Bacon
+    .fromNodeCallback(github.search.issues, {q: commit.sha})
+    .flatMap(function(search) {
+      return search.items && search.items.length ? search.items[0] : undefined;
+    });
+}
 
 var sinceDateStream = streamDateFromDateStringOrCommitId(program.since);
 var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
@@ -207,16 +271,27 @@ var untilDateStream = streamDateFromDateStringOrCommitId(program.until);
 var params = Bacon
   .combineTemplate({ since: sinceDateStream, until: untilDateStream });
 
-// Get a stream providing the pull requests.
-var pullRequests = params
-  .flatMap(streamAllPullRequestsBetween);
+var commits = params
+  .flatMap(retrieveCommits);
 
-// Keep only merged pull requests if specified.
-if (program.merged) {
-  pullRequests = pullRequests.filter(function(pullRequest) {
-    return pullRequest.merged_at !== null;
-  });
-}
+// If first commit is not a merge commit, go get its associated open Pull Request, if any.
+var potentialOpenPullRequest = commits
+  .first()
+  .filter(not(commitIsMergedPullRequest))
+  .flatMap(searchPullRequestByCommit);
+
+// Get a stream of pull request ids, based on merged commits between since and until.
+var closedPullRequests = commits
+  .filter(commitIsMergedPullRequest)
+  .flatMap(getPullRequestIdFromCommit)
+  .flatMap(retrievePullRequestById)
+  ;
+
+var pullRequests = potentialOpenPullRequest.merge(closedPullRequests);
+
+// // Get a stream providing the pull requests.
+// var pullRequests = params
+//   .flatMap(streamAllPullRequestsBetween);
 
 // Generate changelog text.
 var changelog = Bacon
