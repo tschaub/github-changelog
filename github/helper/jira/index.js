@@ -2,7 +2,7 @@
 
 module.exports = function(jira) {
   var parseTicketKeyFromTitle = function(string) {
-    var matches = /^([A-Z]{3}-\d+)/.exec(string);
+    var matches = /^([A-Z]{2,3}-\d+)/.exec(string);
 
     if (matches === null) {
       return null;
