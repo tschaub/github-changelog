@@ -10,12 +10,6 @@ module.exports = function(credentials, owner, repo) {
       type: 'oauth',
       token: credentials.token
     });
-  } else if (credentials.username && credentials.password) {
-    github.authenticate({
-      type: 'basic',
-      username: credentials.username,
-      password: credentials.password
-    });
   } else {
     throw new Exception('No credentials given for github');
   }

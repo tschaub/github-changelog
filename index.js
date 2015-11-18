@@ -12,13 +12,8 @@ var path = require('path');
 var program = require('commander');
 
 program
-  .option('-o, --owner <name>', 'Repository owner name.  If not provided, ' +
-          'the "username" option will be used.')
+  .option('-o, --owner <name>', 'Repository owner name.')
   .option('-r, --repo <repo>', 'Repository name (required).')
-  .option('-u, --username <name>', 'Your GitHub username (only required ' +
-          'for private repos).')
-  .option('-p, --password <pass>', 'Your GitHub password (only required ' +
-          'for private repos).')
   .option('-t, --token <token>', 'Your GitHub token (only required ' +
           'for private repos or if you want to bypass the Github API limit rate).')
   .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
@@ -31,12 +26,19 @@ program
   .parse(process.argv);
 
 if (!program.repo) {
+  console.error('\n"repo" options must be provided');
   program.help();
   process.exit(1);
 }
 
-if (!program.username && !program.owner && !program.token) {
-  console.error('\nOne of "username" or "owner" or "token" options must be provided');
+if (!program.owner) {
+  console.error('\n"owner" options must be provided');
+  program.help();
+  process.exit(1);
+}
+
+if (!program.token) {
+  console.error('\n"token" options must be provided');
   program.help();
   process.exit(1);
 }
@@ -50,17 +52,14 @@ if (!program.since) {
 var templatePath = program.template || path.join(__dirname, 'changelog.ejs');
 var template = fs.readFileSync(templatePath, 'utf8');
 
-var owner = program.owner || program.username;
 
 var jira = require('./jira')(config.jira);
 
 var github = require('./github')(
   {
-    token: program.token,
-    username: program.username,
-    password: program.password
+    token: program.token
   },
-  owner,
+  program.owner,
   program.repo
 );
 
