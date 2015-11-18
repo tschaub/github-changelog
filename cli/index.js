@@ -8,8 +8,8 @@ program
   .option('-o, --owner <name>', 'Repository owner name (required).')
   .option('-r, --repo <repo>', 'Repository name (required).')
   .option('-t, --token <token>', 'Your GitHub token (required).')
-  .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
-  .option('-u, --until <iso-date>', 'Limit date or commit sha.')
+  .option('-s, --since <iso-date-or-sha>', 'Initial date or commit sha (required).')
+  .option('-u, --until <iso-date-or-sha>', 'Limit date or commit sha.')
   .option('-p, --template <path>', 'EJS template to format data.' +
           'The default bundled template generates a list of issues in Markdown')
   .option('-g, --gist', 'Publish output to a Github gist.')
