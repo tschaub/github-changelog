@@ -17,8 +17,8 @@ program
   .option('-t, --token <token>', 'Your GitHub token (only required ' +
           'for private repos or if you want to bypass the Github API limit rate).')
   .option('-s, --since <iso-date>', 'Initial date or commit sha (required).')
-  .option('-t, --template <path>', 'EJS template to format data.' +
   .option('-u, --until <iso-date>', 'Limit date or commit sha.')
+  .option('-p, --template <path>', 'EJS template to format data.' +
           'The default bundled template generates a list of issues in Markdown')
   .option('-g, --gist', 'Publish output to a Github gist.')
   .option('-d, --data <data>', 'Set arbitrary JSON data available in the template.')
