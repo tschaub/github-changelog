@@ -2,8 +2,7 @@
 
 require('./bootstrap');
 
-var logger = require('winston');
-var config = require('./config')(logger);
+var config = require('./config/config.json');
 var fs = require('fs');
 
 var cli = require('./cli');
