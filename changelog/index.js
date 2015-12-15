@@ -42,6 +42,8 @@ module.exports = function(api) {
       }
 
       console.log(output);
+
+      process.exit();
     });
   }
 
