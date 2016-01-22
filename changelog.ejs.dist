@@ -14,4 +14,4 @@
 ## Changelog
 
 <% pullRequests.forEach(function(pullRequest){ %>
-- <%= pullRequest.title %> ([#<%= pullRequest.number %>](<%= pullRequest.html_url %>)) /by [@<%= pullRequest.user.login %>](<%= pullRequest.user.html_url %>)<% }); %>
+  - <% if (!pullRequest.jira) {%><%= pullRequest.title %> ([#<%= pullRequest.number %>](<%= pullRequest.html_url %>)) /by [@<%= pullRequest.user.login %>](<%= pullRequest.user.html_url %>)<% } else { %>![<%= pullRequest.jira.type.name %>](<%- pullRequest.jira.type.iconUrl %>) [<%= pullRequest.jira.key %>](https://<%= config.jira.host %>/browse/<%= pullRequest.jira.key %>) - <%= pullRequest.jira.summary %> ([#<%= pullRequest.number %>](<%= pullRequest.html_url %>)) /by [@<%= pullRequest.user.login %>](<%= pullRequest.user.html_url %>)<% } %><% }); %>
