@@ -3,7 +3,7 @@
 var ejs = require('ejs');
 
 module.exports = function(api) {
-  function build(args, template, since, until, pullRequests, data) {
+  function build(args, config, template, since, until, pullRequests, data) {
     var createChangelog = ejs.compile(template);
 
     // Generate changelog text.
@@ -11,6 +11,7 @@ module.exports = function(api) {
         .combineTemplate({
           since: since,
           until: until,
+          config: config,
           pullRequests: pullRequests.reduce([], '.concat'),
           data: data ? JSON.parse(data) : {}
         })

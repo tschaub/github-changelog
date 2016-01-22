@@ -24,6 +24,7 @@ changelog.build(
     gist: args.gist,
     release: args.release
   },
+  config,
   template,
   range.sinceDateStream,
   range.untilDateStream,
