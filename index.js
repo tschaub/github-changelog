@@ -2,11 +2,13 @@
 
 require('./bootstrap');
 
-var config = require('./config/config.json');
 var fs = require('fs');
+var path = require('path');
 
 var cli = require('./cli');
 var args = cli.parse(process.argv);
+
+var config = require(path.resolve(__dirname, args.config));
 var template = fs.readFileSync(args.template, 'utf8');
 
 var jira = require('./jira')(config.jira);
