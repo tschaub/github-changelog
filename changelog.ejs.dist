@@ -1,0 +1,17 @@
+## Current release deployment
+
+- service: <%= data ? data.service : '' %>
+- platform: <%= data ? data.platform : '' %>
+- commit: <%= until && until.commit ? '[' + until.commit.sha + '](' + until.commit.html_url + ')' : '' %>
+- deployer: <%= data ? data.deployer : '' %>
+- deployed_at: <%= (new Date()).toISOString() %>
+
+## Previous release deployment
+
+- commit: <%= since && since.commit ? '[' + since.commit.sha + '](' + since.commit.html_url + ')' : '' %>
+- deployed_at: <%= since.date %>
+
+## Changelog
+
+<% pullRequests.forEach(function(pullRequest){ %>
+  - <% if (!pullRequest.jira) {%><%= pullRequest.title %> ([#<%= pullRequest.number %>](<%= pullRequest.html_url %>)) /by [@<%= pullRequest.user.login %>](<%= pullRequest.user.html_url %>)<% } else { %>![<%= pullRequest.jira.type.name %>](<%- pullRequest.jira.type.iconUrl %>) [<%= pullRequest.jira.key %>](https://<%= config.jira.host %>/browse/<%= pullRequest.jira.key %>) - <%= pullRequest.jira.summary %> ([#<%= pullRequest.number %>](<%= pullRequest.html_url %>)) /by [@<%= pullRequest.user.login %>](<%= pullRequest.user.html_url %>)<% } %><% }); %>

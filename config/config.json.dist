@@ -1,0 +1,12 @@
+{
+  "jira": {
+    "apiProtocol": "http",
+    "apiVersion": "2",
+    "host": "jira.atlassian.net",
+    "port": 80,
+    "username": "username",
+    "password": "password",
+    "verbose": true,
+    "strictSSL": false
+  }
+}
