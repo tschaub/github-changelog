@@ -8,7 +8,7 @@ var path = require('path');
 var cli = require('./cli');
 var args = cli.parse(process.argv);
 
-var config = require(path.resolve(__dirname, args.config));
+var config = require(path.resolve(process.cwd(), args.config));
 var template = fs.readFileSync(args.template, 'utf8');
 
 var jira = require('./jira')(config.jira);
