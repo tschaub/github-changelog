@@ -3,16 +3,12 @@
   "version": "0.4.0",
   "description": "Simple changelog generator for GitHub repositories",
   "main": "index.js",
-  "repository": "https://github.com/tschaub/github-changelog.git",
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "http://tschaub.mit-license.org/"
-    }
-  ],
-  "author": {
-    "name": "Tim Schaub",
-    "url": "http://tschaub.net/"
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/iadvize/github-changelog.git"
+  },
+  "bugs": {
+    "url": "https://github.com/iadvize/github-changelog/issues"
   },
   "dependencies": {
     "baconjs": "0.7.73",
