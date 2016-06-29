@@ -57,6 +57,13 @@ module.exports = function(credentials, owner, repo) {
       }
 
       return pageStreamCallback(index + 1)
+          .flatMap(function (commits) {
+            if (commits.length == 0) {
+              paginationNeeded = false;
+            }
+            return commits;
+          })
+        .flatMap(Bacon.fromArray)
         .doAction(function(item) {
           if (stopCondition(item)) {
             paginationNeeded = false;
@@ -87,8 +94,7 @@ module.exports = function(credentials, owner, repo) {
       };
 
       return Bacon
-        .fromNodeCallback(github.pullRequests.getAll, requestParams)
-        .flatMap(Bacon.fromArray);
+        .fromNodeCallback(github.pullRequests.getAll, requestParams);
     }
 
     function stopWhenSinceIsReached(pullRequest) {
@@ -123,8 +129,7 @@ module.exports = function(credentials, owner, repo) {
       }
 
       return Bacon
-        .fromNodeCallback(github.repos.getCommits, requestParams)
-        .flatMap(Bacon.fromArray);
+        .fromNodeCallback(github.repos.getCommits, requestParams);
     }
 
     var stopWhenSinceIsReached;
