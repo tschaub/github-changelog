@@ -26,7 +26,7 @@ module.exports = function(jira) {
               return commit;
             })
             .catch(function (error) {
-              console.error(error);
+              console.error('[Jira] API Error : ' + error);
               commit.jira = null;
 
               return commit;
