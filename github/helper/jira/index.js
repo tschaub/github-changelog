@@ -2,7 +2,7 @@
 
 module.exports = function(jira) {
   var parseTicketKeyFromTitle = function(string) {
-    var matches = /^([A-Z]{2,3}-\d+)/.exec(string);
+    var matches = /^([A-Z]+-\d+)/.exec(string);
 
     if (matches === null) {
       return null;
@@ -20,8 +20,14 @@ module.exports = function(jira) {
           jira
             .api
             .findIssue(key)
-            .then(function(issue) {
+            .then(function (issue) {
               commit.jira = issue;
+
+              return commit;
+            })
+            .catch(function (error) {
+              console.error('[Jira] API Error : ' + error);
+              commit.jira = null;
 
               return commit;
             })
