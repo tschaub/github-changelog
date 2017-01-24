@@ -1,5 +1,7 @@
 # GitHub Changelog Generator
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/tschaub/github-changelog.svg)](https://greenkeeper.io/)
+
 Create a simple changelog based on closed GitHub issues.
 
 ## Installation
